@@ -1,0 +1,48 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build debug APK
+        shell: bash
+        run: gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Show errors in Summary
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "## Build Errors"
+            echo '```'
+            grep -E -A4 "^e: |error:|What went wrong|Execution failed|Could not |FAILED|Unresolved|Caused by" build.log | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Adm_Player
+          path: build/outputs/apk/debug/*.apk
